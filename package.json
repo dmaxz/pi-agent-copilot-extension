@@ -1,0 +1,35 @@
+{
+  "name": "pi-copilot-harness",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "pi": {
+    "extensions": ["./src/index.ts"]
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.80.3",
+    "@earendil-works/pi-agent-core": "0.80.3",
+    "@earendil-works/pi-coding-agent": "0.80.3",
+    "@earendil-works/pi-tui": "0.80.3",
+    "express": "^5.1.0",
+    "gray-matter": "^4.0.3",
+    "typebox": "^1.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
+}
