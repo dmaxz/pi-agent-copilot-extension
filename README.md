@@ -17,9 +17,58 @@ cd pi-agent-copilot-extension
 # 2. Install and build
 npm install
 npm run build
+```
 
-# 3. Install extension globally (loads on every pi session)
+### Option A: Install globally (loads on every pi session)
+
+```bash
 pi install ./dist/index.js
+```
+
+This registers the extension in Pi's settings. Every `pi` session will load it automatically.
+
+### Option B: Load for one session only (no install)
+
+```bash
+pi -e ./dist/index.js
+```
+
+Or with a specific model:
+
+```bash
+pi -e ./dist/index.js --provider openai --model gpt-4o
+```
+
+The extension loads only for that session. Next time you run `pi` without `-e`, it won't be there.
+
+### Option C: Symlink for development (auto-picks up rebuilds)
+
+```bash
+ln -sf $(pwd)/dist/index.js ~/.pi/agent/extensions/pi-copilot.js
+```
+
+After each `npm run build`, the extension updates automatically. Remove the symlink to uninstall:
+
+```bash
+rm ~/.pi/agent/extensions/pi-copilot.js
+```
+
+## Uninstall
+
+```bash
+pi remove ./dist/index.js
+```
+
+Or if you used the symlink approach:
+
+```bash
+rm ~/.pi/agent/extensions/pi-copilot.js
+```
+
+To verify it's removed:
+
+```bash
+pi list
 ```
 
 ## Test the Extension
