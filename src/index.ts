@@ -41,7 +41,14 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
 
     // 1. Inject custom providers from providers.json
     const providerCount = injectProviders(pi, ctx.cwd);
-    if (providerCount > 0) ctx.ui.notify(`Injected ${providerCount} custom provider(s)`, "info");
+    if (providerCount > 0) {
+      ctx.ui.notify(`Injected ${providerCount} custom provider(s)`, "info");
+    } else {
+      const available = ctx.modelRegistry.getAvailable();
+      if (available.length === 0) {
+        ctx.ui.notify("No providers configured. Run /provider-setup to set up a provider.", "warning");
+      }
+    }
 
     // 2. Parse agent definitions from .pi/agents/
     const agents = parseAgentDefinitions(ctx.cwd);

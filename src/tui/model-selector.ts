@@ -25,7 +25,7 @@ export async function showModelSelector(
   // Get all models that have auth configured
   const available = registry.getAvailable();
   if (available.length === 0) {
-    ctx.ui.notify("No models with configured auth found. Add providers in .pi/copilot/providers.json", "warning");
+    ctx.ui.notify("No models configured. Run /provider-setup to configure a provider via TUI.", "warning");
     return undefined;
   }
 
