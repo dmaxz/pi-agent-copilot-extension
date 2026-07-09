@@ -71,6 +71,41 @@ To verify it's removed:
 pi list
 ```
 
+### Windows
+
+```powershell
+# Clone
+git clone https://github.com/dmaxz/pi-agent-copilot-extension.git
+cd pi-agent-copilot-extension
+
+# Install and build
+npm install
+npm run build
+
+# Option A: Install globally
+pi install .\dist\index.js
+
+# Option B: One-time load
+pi -e .\dist\index.js
+
+# Option C: Symlink (run PowerShell as Admin)
+New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.pi\agent\extensions\pi-copilot.js" -Target "$(Get-Location)\dist\index.js"
+
+# Uninstall
+pi remove .\dist\index.js
+# or remove symlink:
+Remove-Item "$env:USERPROFILE\.pi\agent\extensions\pi-copilot.js"
+
+# Verify
+pi list
+```
+
+**Windows notes:**
+- Use `\` or `/` in paths — Pi accepts both
+- Symlink requires PowerShell **Run as Administrator**
+- `Alt+Enter` doesn't insert newline in Pi — use `Ctrl+Enter`
+- Node.js 22+ required: `node --version` to check
+
 ## Test the Extension
 
 ### Step 1: Verify it loads
