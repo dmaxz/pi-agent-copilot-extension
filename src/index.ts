@@ -22,7 +22,6 @@ import { parseAgentDefinitions } from "./agents/parser.js";
 import { injectProviders } from "./providers/loader.js";
 import { bridgeMcpServers } from "./agents/mcp-bridge.js";
 import { registerNewAgentCommand } from "./agents/newagent.js";
-import { registerProviderSetupCommand } from "./agents/provider-setup.js";
 import { registerToolInterceptor } from "./security/interceptor.js";
 import { startHttpServer, stopHttpServer, waitForFeedback } from "./http/server.js";
 import { runOrchestrator } from "./orchestrator/orchestrator.js";
@@ -44,25 +43,7 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
     if (providerCount > 0) {
       ctx.ui.notify(`Injected ${providerCount} custom provider(s)`, "info");
     } else {
-      const available = ctx.modelRegistry.getAvailable();
-      if (available.length === 0 && ctx.hasUI) {
-        ctx.ui.notify("No providers found. Starting setup wizard...", "info");
-        try {
-          // Auto-launch provider setup
-          const { registerProviderSetupCommand } = await import("./agents/provider-setup.js");
-          // We can't call the command handler directly, so prompt the user
-          const choice = await ctx.ui.select(
-            "No providers configured",
-            ["  Run /provider-setup to configure a provider", "  Skip (configure later)"],
-            { timeout: 30000 }
-          );
-          if (choice && choice.includes("Run")) {
-            ctx.ui.notify("Type /provider-setup and press Enter", "info");
-          }
-        } catch {
-          ctx.ui.notify("Run /provider-setup to configure a provider.", "warning");
-        }
-      }
+
     }
 
     // 2. Parse agent definitions from .pi/agents/
@@ -139,7 +120,6 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
 
   // ─── Register commands ───
   registerNewAgentCommand(pi);
-  registerProviderSetupCommand(pi);
   registerThemeCommand(pi);
   registerModelSelectorCommand(pi);
 
