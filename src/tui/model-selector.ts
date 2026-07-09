@@ -25,7 +25,7 @@ export async function showModelSelector(
   // Get all models that have auth configured
   const available = registry.getAvailable();
   if (available.length === 0) {
-    ctx.ui.notify("No models with configured auth found.", "warning");
+    // Silently return — let Pi handle its own model warnings
     return undefined;
   }
 

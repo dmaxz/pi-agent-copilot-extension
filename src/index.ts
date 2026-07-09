@@ -1,14 +1,9 @@
 /**
  * Pi-Copilot Harness - Extension Entry Point.
- *
- * Bootstraps all five subsystems:
- * 1. TUI Model Selector and Dynamic Providers
- * 2. Agent Definitions and MCP Mapping
- * 3. Orchestrator and Workplan HTTP Server
- * 4. Zero-Trust Execution Modes
- * 5. Post-Action Summary and Feedback Loop
  */
 
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -42,25 +37,23 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
     // 1. Inject custom providers from providers.json
     const providerCount = injectProviders(pi, ctx.cwd);
     if (providerCount > 0) {
-      ctx.ui.notify(`Injected ${providerCount} custom provider(s)`, "info");
-    } else {
-
+      ctx.ui.notify("Injected " + providerCount + " custom provider(s)", "info");
     }
 
-    // 2. Parse agent definitions from .pi/agents/
+    // 2. Parse agent definitions
     const agents = parseAgentDefinitions(ctx.cwd);
     for (const agent of agents) state.agentDefinitions.set(agent.name, agent);
-    if (agents.length > 0) ctx.ui.notify(`Loaded ${agents.length} agent definition(s)`, "info");
+    if (agents.length > 0) ctx.ui.notify("Loaded " + agents.length + " agent definition(s)", "info");
 
     // 3. Bridge MCP servers
     const mcpCount = await bridgeMcpServers(pi, ctx.cwd);
-    if (mcpCount > 0) ctx.ui.notify(`Bridged ${mcpCount} MCP tool(s)`, "info");
+    if (mcpCount > 0) ctx.ui.notify("Bridged " + mcpCount + " MCP tool(s)", "info");
 
-    // 4. Start HTTP server for workplan/summary pages
+    // 4. Start HTTP server
     try {
       const port = await startHttpServer();
       state.httpPort = port;
-      ctx.ui.setStatus("copilot", `HTTP :${port}`);
+      ctx.ui.setStatus("copilot", "HTTP :" + port);
     } catch {
       ctx.ui.notify("Failed to start HTTP server", "warning");
     }
@@ -79,6 +72,41 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
       if (valid.includes(flagValue)) state.executionMode = flagValue as typeof state.executionMode;
     }
   });
+
+  // ─── Pre-register provider from env vars (before session_start) ───
+  const envUrl = process.env.COPILOT_SERVER_URL || process.env.OMNIROUTE_URL || "";
+  const envKey = process.env.COPILOT_API_KEY || process.env.OMNIROUTE_API_KEY || "";
+  if (envUrl) {
+    try {
+      const cleanUrl = envUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
+      const res = await fetch(cleanUrl + "/v1/models", {
+        headers: envKey ? { Authorization: "Bearer " + envKey } : {},
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        const raw = Array.isArray(data?.data) ? data.data : [];
+        if (raw.length > 0) {
+          pi.registerProvider("copilot-proxy", {
+            name: "Copilot Proxy",
+            baseUrl: cleanUrl + "/v1",
+            apiKey: envKey || "none",
+            api: "openai-completions",
+            authHeader: true,
+            models: raw.map((m: any) => ({
+              id: m.id,
+              name: m.name || m.id,
+              reasoning: !!(m.reasoning || m.capabilities?.reasoning),
+              input: ["text"] as ("text" | "image")[],
+              cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+              contextWindow: m.context_length || 128000,
+              maxTokens: m.max_tokens || 16384,
+            })),
+          });
+        }
+      }
+    } catch { /* non-fatal */ }
+  }
 
   // ─── CLI flags ───
   pi.registerFlag("execution-mode", {
@@ -111,7 +139,7 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
       try {
         const summary = buildSummary(state, ctx.getSystemPrompt().slice(0, 200));
         const feedback = await waitForFeedback(summary, state.httpPort);
-        if (feedback) pi.sendUserMessage(`[User Feedback] ${feedback}`);
+        if (feedback) pi.sendUserMessage("[User Feedback] " + feedback);
       } catch { /* timeout - non-fatal */ }
     }
   });
@@ -149,17 +177,17 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
       const modes = ["strict", "read_only", "execute", "bypass"];
       if (args.trim() && modes.includes(args.trim())) {
         state.executionMode = args.trim() as typeof state.executionMode;
-        ctx.ui.notify(`Mode: ${state.executionMode}`, "info");
+        ctx.ui.notify("Mode: " + state.executionMode, "info");
       } else {
         const choice = await ctx.ui.select(
-          `Current: ${state.executionMode}`,
-          modes.map(m => `${m === state.executionMode ? "=> " : "   "}${m}`)
+          "Current: " + state.executionMode,
+          modes.map(m => (m === state.executionMode ? "=> " : "   ") + m)
         );
         if (choice) {
           const mode = choice.replace(/^[=> ]+/, "").trim();
           if (modes.includes(mode)) {
             state.executionMode = mode as typeof state.executionMode;
-            ctx.ui.notify(`Mode: ${state.executionMode}`, "info");
+            ctx.ui.notify("Mode: " + state.executionMode, "info");
           }
         }
       }
@@ -173,10 +201,10 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
       const agents = Array.from(state.agentDefinitions.values());
       if (agents.length === 0) { ctx.ui.notify("No agents found. Use /newagent to create one.", "info"); return; }
       const lines = agents.map(a => {
-        const sub = a.subagents ? ` (${a.subagents.length} subagent(s))` : "";
-        return `  ${a.name}: ${a.description}${sub}`;
+        const sub = a.subagents ? " (" + a.subagents.length + " subagent(s))" : "";
+        return "  " + a.name + ": " + a.description + sub;
       });
-      ctx.ui.notify(`Agents:\n${lines.join("\n")}`, "info");
+      ctx.ui.notify("Agents:\n" + lines.join("\n"), "info");
     },
   });
 
@@ -185,11 +213,11 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
     description: "Show Pi-Copilot Harness status",
     handler: async (_args: string, ctx: ExtensionCommandContext) => {
       const lines = [
-        `Execution Mode: ${state.executionMode}`,
-        `HTTP Port: ${state.httpPort || "not started"}`,
-        `Agents: ${state.agentDefinitions.size}`,
-        `Tool History: ${state.toolHistory.length} calls`,
-        `Orchestrator: ${state.orchestratorActive ? "active" : "idle"}`,
+        "Execution Mode: " + state.executionMode,
+        "HTTP Port: " + (state.httpPort || "not started"),
+        "Agents: " + state.agentDefinitions.size,
+        "Tool History: " + state.toolHistory.length + " calls",
+        "Orchestrator: " + (state.orchestratorActive ? "active" : "idle"),
       ];
       ctx.ui.notify(lines.join("\n"), "info");
     },
