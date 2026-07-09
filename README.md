@@ -22,27 +22,206 @@ npm run build
 pi install ./dist/index.js
 ```
 
-Verify it's loaded:
+## Test the Extension
+
+### Step 1: Verify it loads
+
+Run a simple non-interactive session. If the extension loads, you'll see no import errors:
 
 ```bash
 pi --print "hello" --no-tools
 ```
 
-If you see no extension errors, it's working.
+Expected: a greeting response. If you see `Failed to load extension`, check Node.js version (`node --version` must be 22+).
 
-## Quick Start
+### Step 2: Check extension status
 
-Once installed, these commands are available in any `pi` session:
-
+```bash
+pi
+> /copilot-status
 ```
-/model-selector          Pick a model from TUI (or Ctrl+M)
-/agents                  List loaded agent definitions
-/newagent                Create a custom agent interactively
-/orchestrate <goal>      Run the orchestrator on a complex task
-/security                View or change execution mode
-/copilot-status          Show extension status
-/theme [name]            Switch TUI theme
+
+Expected output:
 ```
+Execution Mode: read_only
+HTTP Port: <port number>
+Agents: <count>
+Tool History: 0 calls
+Orchestrator: idle
+```
+
+### Step 3: Test the model selector
+
+```bash
+pi
+> /model-selector
+```
+
+A TUI modal opens showing available models. Pick one with arrow keys + Enter. You should see a notification: `Model: <name>`.
+
+Also try `Ctrl+M` as a keyboard shortcut.
+
+### Step 4: Test agent definitions
+
+```bash
+pi
+> /agents
+```
+
+Expected: lists the predefined agents (ask, agent, orchestrator, code-reviewer) with their descriptions.
+
+Create a new agent:
+```bash
+pi
+> /newagent
+```
+
+Follow the prompts to create a custom agent. Verify it appears in `.pi/agents/`.
+
+### Step 5: Test security interceptor
+
+```bash
+pi
+> Run the command: rm -rf /tmp/test_dir_12345
+```
+
+In `read_only` mode (default), the extension should **block** the `rm -rf` command and show:
+```
+Blocked: Matches destructive pattern: \brm\s+(-[rfR]*\s+)*
+```
+
+Then try a safe command:
+```bash
+pi
+> Run: echo "hello world"
+```
+
+This should execute normally.
+
+Switch modes:
+```bash
+pi
+> /security strict    # every tool needs confirmation
+> /security bypass    # full autonomy
+> /security           # interactive selector
+```
+
+### Step 6: Test custom providers
+
+Create `.pi/copilot/providers.json` in your working directory:
+
+```json
+[
+  {
+    "name": "my-proxy",
+    "displayName": "My API Proxy",
+    "baseUrl": "https://your-proxy.com/v1",
+    "apiKey": "$YOUR_API_KEY",
+    "api": "openai-completions",
+    "models": [
+      {
+        "id": "your-model",
+        "name": "Your Model",
+        "reasoning": false,
+        "input": ["text"],
+        "contextWindow": 128000,
+        "maxTokens": 16384,
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+      }
+    ]
+  }
+]
+```
+
+Launch with the custom provider:
+```bash
+pi --provider my-proxy --model your-model
+> /model-selector   # should show "Your Model"
+> What is 2+2?
+```
+
+If the model responds, provider injection is working.
+
+### Step 7: Test the orchestrator
+
+```bash
+pi
+> /orchestrate Read the file package.json and tell me the project name and version
+```
+
+Expected flow:
+1. Extension decomposes the goal into tasks (reader → executor)
+2. A workplan web page opens at `http://127.0.0.1:<port>/workplan/<id>`
+3. Open that URL in your browser
+4. Review the tasks, optionally add notes
+5. Click **Approve & Execute**
+6. Workers execute in order
+7. A summary page appears when done
+
+If the HTTP server doesn't start, check that port isn't blocked.
+
+### Step 8: Test post-action summary
+
+After any session where tools were used, the extension serves a summary page:
+
+```bash
+pi
+> List files in the current directory
+> /copilot-status
+```
+
+Check the terminal output for a line like:
+```
+Session summary: http://127.0.0.1:<port>/summary/<id>
+```
+
+Open in browser to see tool execution history, file changes, and the feedback form.
+
+### Step 9: Test with --mode json (programmatic)
+
+For integration testing or scripting:
+
+```bash
+pi --mode json --print "What is 2+2?" --no-tools 2>&1 | python3 -c "
+import sys, json
+for line in sys.stdin:
+    line = line.strip()
+    if not line: continue
+    try:
+        d = json.loads(line)
+        if d.get('type') == 'agent_end':
+            for m in d.get('messages', []):
+                if m.get('role') == 'assistant':
+                    for c in m.get('content', []):
+                        if c.get('type') == 'text':
+                            print(c['text'])
+    except: pass
+"
+```
+
+### Step 10: Test with a real coding task
+
+```bash
+cd /path/to/your/project
+pi
+> Read the main source file and explain what it does in 3 bullet points
+```
+
+The extension should:
+- Allow the `read` tool (safe in read_only mode)
+- Block any dangerous commands if the model tries them
+- Show a summary page when the turn completes
+
+### Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| `Failed to load extension` | Upgrade Node.js to 22+ |
+| `No API key found` | Set env var or configure provider in `.pi/copilot/providers.json` |
+| `Model not found` | Use `--provider` and `--model` matching your providers.json config |
+| `rm -rf` not blocked | Check `/copilot-status` — mode must be `read_only` (not `bypass`) |
+| Workplan page won't open | Check the port in `/copilot-status`, try `http://127.0.0.1:<port>` |
+| `/model-selector` empty | No providers configured — add `.pi/copilot/providers.json` |
 
 ## Features
 
@@ -202,43 +381,6 @@ subagents:
 ---
 
 You are a senior code reviewer. Be thorough and constructive.
-```
-
-## Usage Examples
-
-### Basic coding task
-
-```bash
-pi
-> Refactor src/utils.ts to use async/await instead of callbacks
-```
-
-### Orchestrated multi-step task
-
-```bash
-pi
-> /orchestrate Add a REST API with GET/POST endpoints for users, write tests, and run them
-```
-
-This will:
-1. Decompose into reader → writer → executor tasks
-2. Show you a workplan web page for approval
-3. Execute workers in order (reader analyzes, writer creates files, executor runs tests)
-4. Show a summary page when done
-
-### Using a custom provider
-
-```bash
-# Set up .pi/copilot/providers.json first, then:
-pi --provider my-proxy --model gpt-4o
-```
-
-### Switching security mode
-
-```bash
-pi
-> /security strict    # every tool needs approval
-> /security bypass    # full autonomy
 ```
 
 ## Architecture
