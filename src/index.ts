@@ -20,11 +20,6 @@ import { startHttpServer, stopHttpServer, waitForFeedback } from "./http/server.
 import { runOrchestrator } from "./orchestrator/orchestrator.js";
 import { recordToolExecution, updateToolArgs, buildSummary } from "./summary/collector.js";
 import { registerModelSelectorCommand } from "./tui/model-selector.js";
-import {
-  registerThemeCommand,
-  getThemePaths,
-  loadCustomTheme,
-} from "./tui/theme-manager.js";
 
 export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> {
   // ─── session_start: bootstrap subsystems ───
@@ -59,14 +54,6 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
       ctx.ui.setStatus("copilot", "HTTP :" + port);
     } catch {}
 
-    // 5. Apply custom theme
-    try {
-      const customTheme = loadCustomTheme(ctx.cwd, "neon");
-      if (customTheme) {
-        const result = ctx.ui.setTheme(customTheme);
-        if (result.success) ctx.ui.notify("Theme: neon", "info");
-      }
-    } catch {}
 
     // 6. Read execution mode from CLI flag
     try {
@@ -119,17 +106,8 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
 
   // ─── Register commands ───
   registerNewAgentCommand(pi);
-  registerThemeCommand(pi);
   registerModelSelectorCommand(pi);
 
-  // ─── Register custom themes ───
-  pi.on("resources_discover", (event) => {
-    try {
-      const themePaths = getThemePaths(event.cwd);
-      if (themePaths.length > 0) return { themePaths };
-    } catch {}
-    return undefined;
-  });
 
   // ─── /orchestrate command ───
   pi.registerCommand("orchestrate", {

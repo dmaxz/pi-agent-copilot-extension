@@ -142,7 +142,6 @@ pi list
 | `/newagent` | Create a new agent interactively (writes to `.pi/agents/`) |
 | `/orchestrate <goal>` | Run the orchestrator — decomposes goal into DAG workplan |
 | `/security [mode]` | View or change execution mode (strict/read_only/execute/bypass) |
-| `/theme [name]` | Switch TUI theme or list available themes |
 | `/copilot-status` | Show extension status (mode, port, agents, tool history) |
 
 ## Test the Extension
@@ -344,7 +343,6 @@ The extension should:
 | `Model not found` | Use `--provider` and `--model` matching your providers.json config |
 | `rm -rf` not blocked | Check `/copilot-status` — mode must be `read_only` (not `bypass`) |
 | Workplan page won't open | Check the port in `/copilot-status`, try `http://127.0.0.1:<port>` |
-| `/model-selector` empty | No providers configured — add `.pi/copilot/providers.json` |
 
 ## Features
 
@@ -707,8 +705,7 @@ src/
 │   ├── state.ts          # Global mutable state singleton
 │   └── config.ts         # Config file loaders
 ├── tui/
-│   ├── model-selector.ts # Model picker TUI
-│   └── theme-manager.ts  # Theme discovery and switching
+│   └── model-selector.ts # Model picker TUI
 ├── agents/
 │   ├── parser.ts         # Markdown+YAML agent definition parser
 │   ├── mcp-bridge.ts     # MCP client bridge (JSON-RPC over stdio)
