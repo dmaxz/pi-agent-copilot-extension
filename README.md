@@ -422,6 +422,21 @@ When a session completes, the extension serves a summary web page showing:
 - Workplan task status (if orchestrator was used)
 - A **feedback form** where you type suggestions that get injected back into the agent loop
 
+## First-Time Setup (before /provider-setup works)
+
+Pi needs at least one model configured before interactive commands work. Set up your API key first:
+
+**Option 1: Environment variable**
+
+
+**Option 2: Auth file (one-time)**
+
+
+**Option 3: Login interactively**
+
+
+Once Pi has a model,  works for configuring custom proxies and additional providers.
+
 ## Quick Provider Setup
 
 Don't want to edit JSON files? Use the interactive wizard:
