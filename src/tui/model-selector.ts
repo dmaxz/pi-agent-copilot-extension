@@ -77,11 +77,4 @@ export function registerModelSelectorCommand(pi: ExtensionAPI): void {
     },
   });
 
-  // Register a keyboard shortcut: Ctrl+M
-  pi.registerShortcut("ctrl+m", {
-    description: "Open model selector",
-    handler: async (ctx) => {
-      await showModelSelector(pi, ctx);
-    },
-  });
 }

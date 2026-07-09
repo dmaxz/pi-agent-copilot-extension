@@ -2,8 +2,6 @@
  * Pi-Copilot Harness - Extension Entry Point.
  */
 
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -17,7 +15,6 @@ import { parseAgentDefinitions } from "./agents/parser.js";
 import { injectProviders } from "./providers/loader.js";
 import { bridgeMcpServers } from "./agents/mcp-bridge.js";
 import { registerNewAgentCommand } from "./agents/newagent.js";
-import { registerCopilotCommand } from "./agents/provider-setup.js";
 import { registerToolInterceptor } from "./security/interceptor.js";
 import { startHttpServer, stopHttpServer, waitForFeedback } from "./http/server.js";
 import { runOrchestrator } from "./orchestrator/orchestrator.js";
@@ -30,83 +27,56 @@ import {
 } from "./tui/theme-manager.js";
 
 export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> {
-  // ─── session_start: bootstrap all subsystems ───
+  // ─── session_start: bootstrap subsystems ───
   pi.on("session_start", async (_event: SessionStartEvent, ctx: ExtensionContext) => {
     resetState();
 
-    // 1. Inject custom providers from providers.json
-    const providerCount = injectProviders(pi, ctx.cwd);
-    if (providerCount > 0) {
-      ctx.ui.notify("Injected " + providerCount + " custom provider(s)", "info");
-    }
+    // 1. Inject custom providers from providers.json (non-blocking)
+    try {
+      const providerCount = injectProviders(pi, ctx.cwd);
+      if (providerCount > 0) {
+        ctx.ui.notify("Injected " + providerCount + " custom provider(s)", "info");
+      }
+    } catch {}
 
     // 2. Parse agent definitions
-    const agents = parseAgentDefinitions(ctx.cwd);
-    for (const agent of agents) state.agentDefinitions.set(agent.name, agent);
-    if (agents.length > 0) ctx.ui.notify("Loaded " + agents.length + " agent definition(s)", "info");
+    try {
+      const agents = parseAgentDefinitions(ctx.cwd);
+      for (const agent of agents) state.agentDefinitions.set(agent.name, agent);
+      if (agents.length > 0) ctx.ui.notify("Loaded " + agents.length + " agent definition(s)", "info");
+    } catch {}
 
-    // 3. Bridge MCP servers
-    const mcpCount = await bridgeMcpServers(pi, ctx.cwd);
-    if (mcpCount > 0) ctx.ui.notify("Bridged " + mcpCount + " MCP tool(s)", "info");
+    // 3. Bridge MCP servers (non-blocking)
+    try {
+      const mcpCount = await bridgeMcpServers(pi, ctx.cwd);
+      if (mcpCount > 0) ctx.ui.notify("Bridged " + mcpCount + " MCP tool(s)", "info");
+    } catch {}
 
-    // 4. Start HTTP server
+    // 4. Start HTTP server for workplan/summary pages
     try {
       const port = await startHttpServer();
       state.httpPort = port;
       ctx.ui.setStatus("copilot", "HTTP :" + port);
-    } catch {
-      ctx.ui.notify("Failed to start HTTP server", "warning");
-    }
+    } catch {}
 
     // 5. Apply custom theme
-    const customTheme = loadCustomTheme(ctx.cwd, "neon");
-    if (customTheme) {
-      const result = ctx.ui.setTheme(customTheme);
-      if (result.success) ctx.ui.notify("Theme: neon", "info");
-    }
+    try {
+      const customTheme = loadCustomTheme(ctx.cwd, "neon");
+      if (customTheme) {
+        const result = ctx.ui.setTheme(customTheme);
+        if (result.success) ctx.ui.notify("Theme: neon", "info");
+      }
+    } catch {}
 
     // 6. Read execution mode from CLI flag
-    const flagValue = pi.getFlag("execution-mode");
-    if (flagValue && typeof flagValue === "string") {
-      const valid = ["strict", "read_only", "execute", "bypass"];
-      if (valid.includes(flagValue)) state.executionMode = flagValue as typeof state.executionMode;
-    }
-  });
-
-  // ─── Pre-register provider from env vars (before session_start) ───
-  const envUrl = process.env.COPILOT_SERVER_URL || process.env.OMNIROUTE_URL || "";
-  const envKey = process.env.COPILOT_API_KEY || process.env.OMNIROUTE_API_KEY || "";
-  if (envUrl) {
     try {
-      const cleanUrl = envUrl.replace(/\/+$/, "").replace(/\/v1$/, "");
-      const res = await fetch(cleanUrl + "/v1/models", {
-        headers: envKey ? { Authorization: "Bearer " + envKey } : {},
-        signal: AbortSignal.timeout(8000),
-      });
-      if (res.ok) {
-        const data = (await res.json()) as any;
-        const raw = Array.isArray(data?.data) ? data.data : [];
-        if (raw.length > 0) {
-          pi.registerProvider("copilot-proxy", {
-            name: "Copilot Proxy",
-            baseUrl: cleanUrl + "/v1",
-            apiKey: envKey || "none",
-            api: "openai-completions",
-            authHeader: true,
-            models: raw.map((m: any) => ({
-              id: m.id,
-              name: m.name || m.id,
-              reasoning: !!(m.reasoning || m.capabilities?.reasoning),
-              input: ["text"] as ("text" | "image")[],
-              cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-              contextWindow: m.context_length || 128000,
-              maxTokens: m.max_tokens || 16384,
-            })),
-          });
-        }
+      const flagValue = pi.getFlag("execution-mode");
+      if (flagValue && typeof flagValue === "string") {
+        const valid = ["strict", "read_only", "execute", "bypass"];
+        if (valid.includes(flagValue)) state.executionMode = flagValue as typeof state.executionMode;
       }
-    } catch { /* non-fatal */ }
-  }
+    } catch {}
+  });
 
   // ─── CLI flags ───
   pi.registerFlag("execution-mode", {
@@ -140,7 +110,7 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
         const summary = buildSummary(state, ctx.getSystemPrompt().slice(0, 200));
         const feedback = await waitForFeedback(summary, state.httpPort);
         if (feedback) pi.sendUserMessage("[User Feedback] " + feedback);
-      } catch { /* timeout - non-fatal */ }
+      } catch {}
     }
   });
 
@@ -151,12 +121,13 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
   registerNewAgentCommand(pi);
   registerThemeCommand(pi);
   registerModelSelectorCommand(pi);
-  registerCopilotCommand(pi);
 
-  // ─── Register custom themes via resources_discover ───
+  // ─── Register custom themes ───
   pi.on("resources_discover", (event) => {
-    const themePaths = getThemePaths(event.cwd);
-    if (themePaths.length > 0) return { themePaths };
+    try {
+      const themePaths = getThemePaths(event.cwd);
+      if (themePaths.length > 0) return { themePaths };
+    } catch {}
     return undefined;
   });
 
