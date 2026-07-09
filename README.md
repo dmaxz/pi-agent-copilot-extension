@@ -89,6 +89,7 @@ pi install .\dist\index.js
 pi -e .\dist\index.js
 
 # Option C: Symlink (run PowerShell as Admin)
+mkdir -Force "$env:USERPROFILE\.pigent\extensions" | Out-Null
 New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.pi\agent\extensions\pi-copilot.js" -Target "$(Get-Location)\dist\index.js"
 
 # Uninstall
