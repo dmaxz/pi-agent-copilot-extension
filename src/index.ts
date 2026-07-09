@@ -22,6 +22,7 @@ import { parseAgentDefinitions } from "./agents/parser.js";
 import { injectProviders } from "./providers/loader.js";
 import { bridgeMcpServers } from "./agents/mcp-bridge.js";
 import { registerNewAgentCommand } from "./agents/newagent.js";
+import { registerProviderSetupCommand } from "./agents/provider-setup.js";
 import { registerToolInterceptor } from "./security/interceptor.js";
 import { startHttpServer, stopHttpServer, waitForFeedback } from "./http/server.js";
 import { runOrchestrator } from "./orchestrator/orchestrator.js";
@@ -116,6 +117,7 @@ export default async function piCopilotHarness(pi: ExtensionAPI): Promise<void> 
 
   // ─── Register commands ───
   registerNewAgentCommand(pi);
+  registerProviderSetupCommand(pi);
   registerThemeCommand(pi);
   registerModelSelectorCommand(pi);
 

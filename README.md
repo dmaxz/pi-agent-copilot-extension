@@ -395,6 +395,25 @@ When a session completes, the extension serves a summary web page showing:
 - Workplan task status (if orchestrator was used)
 - A **feedback form** where you type suggestions that get injected back into the agent loop
 
+## Quick Provider Setup
+
+Don't want to edit JSON files? Use the interactive wizard:
+
+
+
+It walks you through:
+1. Select provider (OpenAI, Anthropic, DeepSeek, Google, OpenRouter, xAI, or custom)
+2. Enter base URL (for custom proxies)
+3. Enter API key
+4. Select API type
+5. Enter model ID and display name
+6. Confirm reasoning model capability
+7. Saves to  + 
+
+For custom proxies, it also creates  in your current project.
+
+
+
 ## Configuration
 
 Pi has a layered configuration system. Settings cascade: **project overrides global**.
