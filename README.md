@@ -397,24 +397,92 @@ When a session completes, the extension serves a summary web page showing:
 
 ## Configuration
 
-### Custom Providers
+Pi has a layered configuration system. Settings cascade: **project overrides global**.
 
-Create `.pi/copilot/providers.json` in your project root:
+### Layer 1: System-wide (all projects)
+
+#### Auth file — `~/.pi/agent/auth.json`
+
+Store API keys for built-in providers:
+
+```json
+{
+  "openai": { "type": "api_key", "key": "sk-..." },
+  "anthropic": { "type": "api_key", "key": "sk-ant-..." },
+  "deepseek": { "type": "api_key", "key": "sk-..." },
+  "google": { "type": "api_key", "key": "..." }
+}
+```
+
+Or use `/login` interactively to add keys:
+
+```bash
+pi
+> /login
+# Select provider → enter API key → saved to auth.json
+```
+
+#### Settings file — `~/.pi/agent/settings.json`
+
+Set default provider and model globally:
+
+```json
+{
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-4o",
+  "defaultThinkingLevel": "medium"
+}
+```
+
+Or use `/settings` interactively:
+
+```bash
+pi
+> /settings
+# Navigate to change default provider/model
+```
+
+#### Environment variables
+
+```bash
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+export DEEPSEEK_API_KEY=sk-...
+```
+
+**Auth resolution order**: CLI flag `--api-key` → environment variable → `auth.json`
+
+### Layer 2: Project-local (overrides system-wide)
+
+#### Pi settings — `.pi/settings.json`
+
+Override `defaultProvider`, `defaultModel`, etc. for this project only:
+
+```json
+{
+  "defaultProvider": "my-proxy",
+  "defaultModel": "executor"
+}
+```
+
+#### Extension providers — `.pi/copilot/providers.json`
+
+This is the Pi-Copilot extension's config. It registers custom providers on `session_start` via `pi.registerProvider()`. Use this for providers that aren't built-in (custom proxies, vLLM, Ollama, etc.):
 
 ```json
 [
   {
     "name": "my-proxy",
     "displayName": "My API Proxy",
-    "baseUrl": "https://api.example.com/v1",
-    "apiKey": "$MY_API_KEY",
+    "baseUrl": "https://your-proxy.com/v1",
+    "apiKey": "$YOUR_API_KEY",
     "api": "openai-completions",
     "models": [
       {
-        "id": "gpt-4o",
-        "name": "GPT-4o (Proxy)",
+        "id": "your-model",
+        "name": "Your Model",
         "reasoning": false,
-        "input": ["text", "image"],
+        "input": ["text"],
         "contextWindow": 128000,
         "maxTokens": 16384,
         "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
@@ -424,9 +492,96 @@ Create `.pi/copilot/providers.json` in your project root:
 ]
 ```
 
-The extension reads this on `session_start` and calls `pi.registerProvider()` to inject the providers. You can also override built-in providers by using the same name (e.g. `"openai"`).
+**You can override built-in providers** by registering with the same name (e.g. `"openai"`). This redirects the built-in OpenAI provider to your custom endpoint.
 
-**Important**: `OPENAI_BASE_URL` does NOT work for the plain OpenAI provider. Use `registerProvider()` via this config instead.
+**`$ENV_VAR` interpolation** works in `apiKey` — set `YOUR_API_KEY` in your environment or `.env` file.
+
+**Important**: `OPENAI_BASE_URL` does NOT work for the plain OpenAI provider. Use this config instead.
+
+### How to set a provider globally and use it everywhere
+
+**Step 1**: Add your API key to `~/.pi/agent/auth.json`:
+
+```json
+{
+  "openai": { "type": "api_key", "key": "sk-c71381a4..." }
+}
+```
+
+**Step 2**: Set default model in `~/.pi/agent/settings.json`:
+
+```json
+{
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-4o"
+}
+```
+
+**Step 3**: Now `pi` uses that model everywhere without flags:
+
+```bash
+pi                    # uses openai/gpt-4o
+pi --model claude-3    # override for this session
+```
+
+### How to set a custom proxy per-project
+
+**Step 1**: Create `.pi/copilot/providers.json` in your project:
+
+```json
+[
+  {
+    "name": "openai",
+    "displayName": "My Proxy",
+    "baseUrl": "https://my-proxy.com/v1",
+    "apiKey": "$MY_PROXY_KEY",
+    "api": "openai-completions",
+    "models": [
+      { "id": "gpt-4o", "name": "GPT-4o", "reasoning": false,
+        "input": ["text"], "contextWindow": 128000, "maxTokens": 16384,
+        "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 } }
+    ]
+  }
+]
+```
+
+**Step 2**: Create `.pi/settings.json` to use it:
+
+```json
+{
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-4o"
+}
+```
+
+**Step 3**: Run `pi` from that directory — it automatically uses your proxy:
+
+```bash
+cd /path/to/project
+pi                    # uses project-local proxy
+```
+
+### In-session commands
+
+| Command | Purpose |
+|---------|---------|
+| `/login` | Add API key (OAuth or API key) interactively |
+| `/logout` | Clear saved credentials |
+| `/model` | Change model for current session |
+| `/settings` | View/change common settings |
+| `/model-selector` | TUI model picker (Pi-Copilot extension) |
+| `/copilot-status` | Check extension and provider status |
+
+### Config file locations
+
+| File | Scope | Purpose |
+|------|-------|---------|
+| `~/.pi/agent/auth.json` | Global | API keys for built-in providers |
+| `~/.pi/agent/settings.json` | Global | Default provider, model, UI prefs |
+| `.pi/settings.json` | Project | Override global settings |
+| `.pi/copilot/providers.json` | Project | Custom providers (extension) |
+| `.pi/copilot/mcp.json` | Project | MCP servers (extension) |
+| `.pi/agents/*.md` | Project | Agent definitions (extension) |
 
 ### MCP Servers
 
