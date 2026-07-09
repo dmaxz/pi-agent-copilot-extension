@@ -41,16 +41,42 @@ pi -e ./dist/index.js --provider openai --model gpt-4o
 
 The extension loads only for that session. Next time you run `pi` without `-e`, it won't be there.
 
-### Option C: Symlink for development (auto-picks up rebuilds)
+### Option C: Copy dist for development
 
+The extension needs the full `dist/` directory (not just `index.js`) because of relative imports.
+
+**Linux/macOS:**
 ```bash
-ln -sf $(pwd)/dist/index.js ~/.pi/agent/extensions/pi-copilot.js
+mkdir -p ~/.pi/agent/extensions/pi-copilot
+cp -r dist/* ~/.pi/agent/extensions/pi-copilot/
+cp package.json ~/.pi/agent/extensions/pi-copilot/
 ```
 
-After each `npm run build`, the extension updates automatically. Remove the symlink to uninstall:
+**Windows (PowerShell):**
+```powershell
+mkdir -Force "$env:USERPROFILE/.pi/agent/extensions/pi-copilot" | Out-Null
+Copy-Item -Recurse -Force ./dist/* "$env:USERPROFILE/.pi/agent/extensions/pi-copilot/"
+Copy-Item ./package.json "$env:USERPROFILE/.pi/agent/extensions/pi-copilot/"
+```
+
+After each `npm run build`, re-copy:
 
 ```bash
-rm ~/.pi/agent/extensions/pi-copilot.js
+# Linux/macOS
+cp -r dist/* ~/.pi/agent/extensions/pi-copilot/
+
+# Windows
+Copy-Item -Recurse -Force ./dist/* "$env:USERPROFILE/.pi/agent/extensions/pi-copilot/"
+```
+
+Remove to uninstall:
+
+```bash
+# Linux/macOS
+rm -rf ~/.pi/agent/extensions/pi-copilot
+
+# Windows
+Remove-Item -Recurse "$env:USERPROFILE/.pi/agent/extensions/pi-copilot"
 ```
 
 ## Uninstall
