@@ -133,6 +133,18 @@ pi list
 - `Alt+Enter` doesn't insert newline in Pi — use `Ctrl+Enter`
 - Node.js 22+ required: `node --version` to check
 
+## Slash Commands
+
+| Command | Description |
+|---------|-------------|
+| `/model-selector` | Open TUI model picker — browse and switch models |
+| `/agents` | List loaded agent definitions |
+| `/newagent` | Create a new agent interactively (writes to `.pi/agents/`) |
+| `/orchestrate <goal>` | Run the orchestrator — decomposes goal into DAG workplan |
+| `/security [mode]` | View or change execution mode (strict/read_only/execute/bypass) |
+| `/theme [name]` | Switch TUI theme or list available themes |
+| `/copilot-status` | Show extension status (mode, port, agents, tool history) |
+
 ## Test the Extension
 
 ### Step 1: Verify it loads
@@ -338,7 +350,7 @@ The extension should:
 
 ### 1. Model Selector
 
-`/model-selector` or `Ctrl+M` opens a TUI modal showing all available models grouped by provider. Select with arrow keys + Enter.
+`/model-selector` opens a TUI modal showing all available models grouped by provider. Select with arrow keys + Enter.
 
 Add custom providers via `.pi/copilot/providers.json` in your project root (see Configuration below).
 
@@ -695,7 +707,7 @@ src/
 │   ├── state.ts          # Global mutable state singleton
 │   └── config.ts         # Config file loaders
 ├── tui/
-│   ├── model-selector.ts # Model picker TUI (Ctrl+M)
+│   ├── model-selector.ts # Model picker TUI
 │   └── theme-manager.ts  # Theme discovery and switching
 ├── agents/
 │   ├── parser.ts         # Markdown+YAML agent definition parser
