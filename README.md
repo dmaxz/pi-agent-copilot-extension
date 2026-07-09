@@ -422,9 +422,11 @@ When a session completes, the extension serves a summary web page showing:
 - Workplan task status (if orchestrator was used)
 - A **feedback form** where you type suggestions that get injected back into the agent loop
 
-## First-Time Setup (before /provider-setup works)
+## First-Time Setup (required)
 
-Pi needs at least one model configured before interactive commands work. Set up your API key first:
+**Pi needs at least one built-in provider configured before ANY interactive commands work.** This is a Pi limitation — the model selector blocks all input when no model is available. Extensions can add custom providers, but only AFTER Pi has a working model.
+
+Set up ONE built-in provider first:
 
 **Option 1: Environment variable**
 
